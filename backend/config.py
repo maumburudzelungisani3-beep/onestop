@@ -4,7 +4,25 @@ import uuid
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sources.json")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CONFIG_FILE = os.path.join(BASE_DIR, "sources.json")
+
+def resolve_source_path(p: str) -> str:
+    if not p:
+        return p
+    if os.path.exists(p):
+        return p
+    candidate = os.path.normpath(os.path.join(BASE_DIR, p))
+    if os.path.exists(candidate):
+        return candidate
+    for marker in ["onestop\\", "onestop/"]:
+        if marker in p.lower():
+            idx = p.lower().find(marker)
+            subpath = p[idx + len(marker):]
+            candidate2 = os.path.normpath(os.path.join(BASE_DIR, subpath))
+            if os.path.exists(candidate2):
+                return candidate2
+    return p
 
 class DataSource(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -28,7 +46,10 @@ class AppConfig:
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                return [DataSource(**item) for item in data]
+                sources = [DataSource(**item) for item in data]
+                for s in sources:
+                    s.path = resolve_source_path(s.path)
+                return sources
         except Exception as e:
             print(f"Error loading sources config: {e}")
             return []
