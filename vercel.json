@@ -1,12 +1,12 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "cleanUrls": true,
-  "outputDirectory": "frontend",
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://databridge-api.onrender.com/api/$1"
+      "destination": "api/index.py"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "api/index.py"
     }
   ]
 }
