@@ -59,6 +59,19 @@ class UpdateSourcePayload(BaseModel):
 
 @app.on_event("startup")
 def startup_event():
+    # If uncompressed database is missing (e.g. fresh cloud deployment), auto-extract from committed zip
+    if not os.path.exists(CONSOLIDATED_DB_PATH):
+        zip_path = os.path.join(os.path.dirname(CONSOLIDATED_DB_PATH), "consolidated_lands.db.zip")
+        if os.path.exists(zip_path):
+            try:
+                print(f"Extracting {zip_path} to {os.path.dirname(CONSOLIDATED_DB_PATH)}...")
+                import zipfile
+                with zipfile.ZipFile(zip_path, "r") as zf:
+                    zf.extractall(os.path.dirname(CONSOLIDATED_DB_PATH))
+                print("Consolidated database extracted successfully.")
+            except Exception as e:
+                print(f"Failed to auto-extract consolidated database: {e}")
+
     # Ensure initial demo sources exist if sources.json is empty
     sources = AppConfig.get_sources()
     if not sources:

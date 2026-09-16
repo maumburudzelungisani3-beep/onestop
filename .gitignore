@@ -33,8 +33,8 @@ ENV/
 *.db-journal
 
 # Large binary database files exceeding GitHub 100MB push limit
-# (Uncomment or use Git LFS if pushing full database to a repository)
 *.db
+!data/consolidated_lands.db.zip
 sample_data/*.accdb
 
 # Node / Frontend (if applicable)
