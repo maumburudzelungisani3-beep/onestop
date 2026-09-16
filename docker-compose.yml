@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  databridge:
+    build: .
+    container_name: databridge-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./sources.json:/app/sources.json
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1

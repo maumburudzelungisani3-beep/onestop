@@ -1,0 +1,203 @@
+[
+  {
+    "id": "consolidated-lands-sqlite",
+    "name": "Consolidated Lands Database (Local SQLite)",
+    "type": "sqlite",
+    "path": "C:\\Users\\usr\\Desktop\\onestop\\data\\consolidated_lands.db",
+    "description": "Consolidated high-performance local database with 530,895 records across 107 tables (OfferLetters 2026, LANDS 02, A2 Allocations, and 2025 Provincial Farm Registers)",
+    "enabled": true,
+    "tables_or_sheets": null,
+    "last_connected": null,
+    "status": "connected",
+    "error_message": null,
+    "cached_tables": [
+      "ol2026_beneficiary_details",
+      "ol2026_a1_subdivision_register",
+      "ol2026_farm_register",
+      "ol2026_permitsprinted",
+      "ol2026_allocation_register",
+      "ol2026_planned_farm",
+      "ol2026_company",
+      "ol2026_withdrawals",
+      "ol2026_intention",
+      "lands02_farm_details",
+      "lands02_personal_details",
+      "lands02_farm_withdrawn",
+      "a2_alloc_sheet1",
+      "a2_alloc_sheet2"
+    ],
+    "password": null
+  },
+  {
+    "id": "3f2f2f58-de28-46af-94c9-db1e4bb0e11e",
+    "name": "Warehouse Central Access DB",
+    "type": "access",
+    "path": "C:\\Users\\usr\\Desktop\\onestop\\sample_data\\warehouse_inventory.accdb",
+    "description": "Local network warehouse inventory and machine assets (.accdb)",
+    "enabled": true,
+    "tables_or_sheets": null,
+    "last_connected": null,
+    "status": "connected",
+    "error_message": null,
+    "cached_tables": [
+      "WarehouseItems",
+      "MachineAssets"
+    ],
+    "password": null
+  },
+  {
+    "id": "0beeaf6b-57a6-4a19-b2c2-b4d9418cd478",
+    "name": "Procurement & Orders Excel",
+    "type": "excel",
+    "path": "C:\\Users\\usr\\Desktop\\onestop\\sample_data\\procurement_catalog.xlsx",
+    "description": "Local network procurement vendor catalog and purchase orders (.xlsx)",
+    "enabled": true,
+    "tables_or_sheets": null,
+    "last_connected": null,
+    "status": "connected",
+    "error_message": null,
+    "cached_tables": [
+      "VendorCatalog",
+      "ActiveOrders"
+    ],
+    "password": null
+  },
+  {
+    "id": "lands-02-backup-mdb",
+    "name": "LANDS 02 Network Database (LIMS Live)",
+    "type": "access",
+    "path": "\\\\Lands02\\lims\\backups\\lims live\\old system\\LANDS 02_Backup.mdb",
+    "description": "Live network database with Farm Details (31.7k) and Personal Details (36.3k) [Replicated in Local DB]",
+    "enabled": false,
+    "tables_or_sheets": [
+      "FARM DETAILS",
+      "PERSONAL DETAILS",
+      "Farm Withdrawn"
+    ],
+    "last_connected": null,
+    "status": "connected",
+    "error_message": null,
+    "cached_tables": [
+      "FARM DETAILS",
+      "PERSONAL DETAILS",
+      "Farm Withdrawn"
+    ],
+    "password": "ALLOCATIONS"
+  },
+  {
+    "id": "lands02-a2-allocations-xls",
+    "name": "A2 Allocations Database (Mrs Gavi Excel)",
+    "type": "excel",
+    "path": "\\\\Lands02\\offer letters\\MRS GAVI\\Copy of A2 ALLOC-2 Old Database (version 1) (Autosaved)-3.xls",
+    "description": "Historical A2 Land Allocations & Offer Letters [Replicated in Local DB]",
+    "enabled": false,
+    "tables_or_sheets": [
+      "Sheet1",
+      "Sheet2"
+    ],
+    "last_connected": null,
+    "status": "connected",
+    "error_message": null,
+    "cached_tables": [
+      "Sheet1",
+      "Sheet2"
+    ],
+    "password": null
+  },
+  {
+    "id": "lands02-offerletters-accdb",
+    "name": "Offer Letters System Database (LIMS ACCDB)",
+    "type": "access",
+    "path": "\\\\Lands02\\lims\\backups\\lims live\\old system\\OfferLetters.accdb",
+    "description": "Modern ACCDB with Beneficiary Details, Farm Register, Permits [Replicated in Local DB]",
+    "enabled": false,
+    "tables_or_sheets": [
+      "Beneficiary_Details",
+      "Farm_register",
+      "PermitsPrinted",
+      "Allocation_Register",
+      "A1_Subdivision_Register",
+      "Company",
+      "Withdrawals"
+    ],
+    "last_connected": null,
+    "status": "connected",
+    "error_message": null,
+    "cached_tables": [
+      "Beneficiary_Details",
+      "Farm_register",
+      "PermitsPrinted",
+      "Allocation_Register",
+      "A1_Subdivision_Register",
+      "Company",
+      "Withdrawals"
+    ],
+    "password": null
+  },
+  {
+    "id": "lands02-offerletters-2026-accdb",
+    "name": "Offer Letters 2026 (Live System ACCDB)",
+    "type": "access",
+    "path": "\\\\Lands02\\lims\\OfferLetters 2026.accdb",
+    "description": "Active 2026 Live Database with Beneficiary Details [Replicated in Local DB]",
+    "enabled": false,
+    "tables_or_sheets": [
+      "Beneficiary_Details",
+      "Farm_register",
+      "PermitsPrinted",
+      "Allocation_Register",
+      "A1_Subdivision_Register",
+      "Planned_Farm",
+      "Company",
+      "Withdrawals",
+      "Intention"
+    ],
+    "last_connected": null,
+    "status": "connected",
+    "error_message": null,
+    "cached_tables": [
+      "Beneficiary_Details",
+      "Farm_register",
+      "PermitsPrinted",
+      "Allocation_Register",
+      "A1_Subdivision_Register",
+      "Planned_Farm",
+      "Company",
+      "Withdrawals",
+      "Intention"
+    ],
+    "password": null
+  },
+  {
+    "id": "lands02-farm-registers-2025",
+    "name": "Current Farm Registers as of 2025 (ZEC Provincial Registers)",
+    "type": "excel",
+    "path": "\\\\Lands02\\lims\\Zec\\Current Farm Registers as of 2025",
+    "description": "8 Provincial Farm Register workbooks (Manicaland, Mash East, Mash Central, Mash West, Masvingo, Mat North, Mat South, Midlands) [Replicated in Local DB]",
+    "enabled": false,
+    "tables_or_sheets": [
+      "Manicaland Farm register.xlsx",
+      "MASH EAST Copy of revised_farm_register_oct_2024(1) - Copy (1).xlsx",
+      "Mashonaland Central Province Updated Registers 2024 (1).xlsx",
+      "Mashonaland  West Farm Registers 2024.xlsx",
+      "Masvingo Farm Register Mrs Muchemwa date 18Feb2025 (1).xls",
+      "Mat.North Farm Registers January 2025.xls",
+      "Matebeleland South Database 06_02_25 (1).xls",
+      "Midlands_Farm Registers Updated (2024).xlsx"
+    ],
+    "last_connected": null,
+    "status": "connected",
+    "error_message": null,
+    "cached_tables": [
+      "Manicaland Farm register.xlsx",
+      "MASH EAST Copy of revised_farm_register_oct_2024(1) - Copy (1).xlsx",
+      "Mashonaland Central Province Updated Registers 2024 (1).xlsx",
+      "Mashonaland  West Farm Registers 2024.xlsx",
+      "Masvingo Farm Register Mrs Muchemwa date 18Feb2025 (1).xls",
+      "Mat.North Farm Registers January 2025.xls",
+      "Matebeleland South Database 06_02_25 (1).xls",
+      "Midlands_Farm Registers Updated (2024).xlsx"
+    ],
+    "password": null
+  }
+]

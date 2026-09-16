@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DataBridge — Unified Access DB & Excel Network Search</title>
+  <meta name="description" content="Simultaneously search and inspect records across local network Microsoft Access databases and Excel spreadsheets.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-mark">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+        </svg>
+      </div>
+      <div>
+        <div class="app-title-row">
+          <h1 class="app-title">DataBridge</h1>
+          <span class="badge-network"><span class="pulse-dot"></span> Local Network Active</span>
+        </div>
+        <p class="app-subtitle">Unified search across MS Access databases & Excel workbooks</p>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button id="btnOpenConsolidatedModal" class="btn btn-primary btn-glow" title="View, query, and download consolidated local SQLite database">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+          <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        </svg>
+        <span>Consolidated DB</span>
+        <span id="consolidatedRowCountBadge" class="counter-pill pill-accent">530k rows</span>
+      </button>
+
+      <button id="btnManageSources" class="btn btn-secondary" title="Configure network databases and excel sheets">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span>Data Sources</span>
+        <span id="headerSourceCountBadge" class="counter-pill">0</span>
+      </button>
+
+      <button id="themeToggleBtn" class="btn btn-icon" title="Toggle Theme" aria-label="Toggle theme">
+        <svg id="themeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-layout">
+    
+    <!-- Hero / Search Section -->
+    <section class="search-hero">
+      <div class="search-input-wrapper">
+        <svg class="search-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input 
+          type="text" 
+          id="globalSearchInput" 
+          placeholder="Search items, part numbers, descriptions, suppliers, or assets..." 
+          autocomplete="off"
+          autofocus
+        />
+        <button id="clearSearchBtn" class="clear-btn" title="Clear search" style="display: none;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <div id="searchSpinner" class="spinner" style="display: none;"></div>
+      </div>
+
+      <!-- Quick filters & Suggestions -->
+      <div class="search-controls-row">
+        <!-- Source Filter Pills -->
+        <div class="filter-pills" id="sourceFilterPills">
+          <button class="pill active" data-type="all">All Sources</button>
+          <button class="pill" data-type="sqlite">
+            <span class="pill-dot dot-sqlite"></span> Consolidated DB (530k)
+          </button>
+          <button class="pill" data-type="access">
+            <span class="pill-dot dot-access"></span> Access Databases
+          </button>
+          <button class="pill" data-type="excel">
+            <span class="pill-dot dot-excel"></span> Excel Workbooks
+          </button>
+        </div>
+
+        <!-- Sample Quick Query Chips -->
+        <div class="quick-chips">
+          <span class="quick-label">Try:</span>
+          <button class="chip" data-query="Makonde">Makonde</button>
+          <button class="chip" data-query="Matsangaise">Matsangaise</button>
+          <button class="chip" data-query="Laurencedale">Laurencedale</button>
+          <button class="chip" data-query="Harare">Harare</button>
+          <button class="chip" data-query="Permit">Permit</button>
+          <button class="chip" data-query="PO-2026">Orders (PO)</button>
+          <button class="chip" data-query="CNC">CNC Machines</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results Status Bar -->
+    <section class="results-meta-bar">
+      <div class="meta-left">
+        <span id="resultsCountText" class="results-headline">Browsing all records</span>
+        <span id="resultsDurationText" class="latency-tag">0 ms</span>
+      </div>
+      
+      <div class="meta-right">
+        <!-- Export Dropdown -->
+        <div class="export-group">
+          <button id="btnExportCsv" class="btn btn-sm btn-outline" title="Export matching results to CSV">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Export CSV
+          </button>
+          <button id="btnExportExcel" class="btn btn-sm btn-outline" title="Export matching results to Excel">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            Export Excel
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Source Activity Status Cards -->
+    <section class="source-badges-bar" id="sourceBadgesBar"></section>
+
+    <!-- Results View: Data Grid Table -->
+    <section class="results-container">
+      <div class="table-responsive" id="tableContainer">
+        <table class="data-table" id="resultsTable">
+          <thead>
+            <tr>
+              <th style="width: 140px;">Source & Table</th>
+              <th style="width: 200px;">Name / Surname</th>
+              <th style="width: 140px;">National ID / ID</th>
+              <th style="width: 250px;">Farm Name &amp; Where Taken From</th>
+              <th style="width: 130px;">Subdivision / Plot #</th>
+              <th style="width: 160px;">District / Province</th>
+              <th style="width: 85px; text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="resultsTableBody">
+            <!-- Dynamic Rows Injected Here -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="empty-state" style="display: none;">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </div>
+        <h3>No matching items found</h3>
+        <p>Try refining your search keyword or check that the target source is enabled.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Record Inspection Side Drawer -->
+  <aside id="detailDrawer" class="drawer">
+    <div class="drawer-header">
+      <div class="drawer-title-group">
+        <span id="drawerSourceBadge" class="source-badge">Access DB</span>
+        <h3 id="drawerItemTitle">Item Details</h3>
+        <p id="drawerContainerPath" class="drawer-subtitle">File / Table Path</p>
+      </div>
+      <button id="closeDrawerBtn" class="drawer-close-btn" aria-label="Close drawer">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="drawer-content">
+      <!-- Essential Land Profile Card -->
+      <div class="essential-profile-card" id="drawerEssentialProfile">
+        <div class="profile-header-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span>Essential Land &amp; Beneficiary Data</span>
+        </div>
+        <div class="profile-grid">
+          <div class="profile-tile">
+            <span class="profile-tile-label">Full Name / Beneficiary</span>
+            <span class="profile-tile-val" id="dpFullName">—</span>
+          </div>
+          <div class="profile-tile">
+            <span class="profile-tile-label">Surname</span>
+            <span class="profile-tile-val profile-surname-val" id="dpSurname">—</span>
+          </div>
+          <div class="profile-tile">
+            <span class="profile-tile-label">National ID / ID Number</span>
+            <span class="profile-tile-val font-mono profile-id-val" id="dpIdNumber">—</span>
+          </div>
+          <div class="profile-tile">
+            <span class="profile-tile-label">Farm Name</span>
+            <span class="profile-tile-val profile-farm-val" id="dpFarmName">—</span>
+          </div>
+          <div class="profile-tile">
+            <span class="profile-tile-label">Subdivision / Plot #</span>
+            <span class="profile-tile-val font-mono profile-subdiv-val" id="dpSubdivision">—</span>
+          </div>
+          <div class="profile-tile">
+            <span class="profile-tile-label">District &amp; Province</span>
+            <span class="profile-tile-val" id="dpLocation">—</span>
+          </div>
+          <div class="profile-tile">
+            <span class="profile-tile-label">Land Size / Area</span>
+            <span class="profile-tile-val" id="dpArea">—</span>
+          </div>
+          <div class="profile-tile">
+            <span class="profile-tile-label">Status / Land Use / Date</span>
+            <span class="profile-tile-val" id="dpStatus">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Farm Origin & Acquisition Lineage (Where Taken From) Card -->
+      <div class="farm-origin-card" id="drawerFarmOriginSection">
+        <div class="origin-header-title">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <span>Farm Origin &amp; Acquisition Lineage (Where Taken From)</span>
+        </div>
+        
+        <div class="origin-summary-box">
+          <span class="origin-summary-label">Where Farm Was Taken From:</span>
+          <div class="origin-summary-text" id="dpWhereTakenFrom">—</div>
+        </div>
+
+        <div class="profile-grid" style="margin-top: 0.75rem;">
+          <div class="profile-tile">
+            <span class="profile-tile-label">Parent Farm / Estate</span>
+            <span class="profile-tile-val font-mono profile-parent-val" id="dpParentFarm">—</span>
+          </div>
+          <div class="profile-tile">
+            <span class="profile-tile-label">Parent Diagram # / Deed</span>
+            <span class="profile-tile-val font-mono profile-diag-val" id="dpParentDiagram">—</span>
+          </div>
+          <div class="profile-tile">
+            <span class="profile-tile-label">Original / Previous District</span>
+            <span class="profile-tile-val" id="dpPreviousDistrict">—</span>
+          </div>
+          <div class="profile-tile">
+            <span class="profile-tile-label">Former Commercial Owner</span>
+            <span class="profile-tile-val" id="dpFormerOwner">—</span>
+          </div>
+          <div class="profile-tile col-span-2">
+            <span class="profile-tile-label">Source Database &amp; Table Provenance</span>
+            <span class="profile-tile-val font-mono profile-prov-val" id="dpSourceProvenance">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- File Metadata Box -->
+      <div class="meta-card">
+        <div class="meta-row">
+          <span class="meta-label">Source Name:</span>
+          <span id="drawerSourceName" class="meta-val font-mono"></span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Container:</span>
+          <span id="drawerContainerName" class="meta-val font-mono"></span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Network Path:</span>
+          <span id="drawerFilePath" class="meta-val font-mono path-val"></span>
+        </div>
+      </div>
+
+      <!-- Attributes Table -->
+      <div class="attrs-header-row">
+        <h4 class="section-heading">All Attributes &amp; Raw Values</h4>
+        <span class="attrs-count-badge" id="drawerAttrsCount">0 fields</span>
+      </div>
+      <div class="fields-list" id="drawerFieldsList"></div>
+    </div>
+  </aside>
+  <div id="drawerBackdrop" class="backdrop"></div>
+
+  <!-- Data Sources Manager Modal -->
+  <div id="sourcesModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title">Network Data Sources</h2>
+          <p class="modal-subtitle">Configure Microsoft Access and Excel files located on local network shares (UNC or mapped drives)</p>
+        </div>
+        <button id="closeSourcesModalBtn" class="btn-icon" aria-label="Close modal">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Tabs for Adding Sources -->
+        <div class="modal-tabs">
+          <button type="button" class="modal-tab active" id="tabAddFile">Add Specific File</button>
+          <button type="button" class="modal-tab" id="tabScanFolder">Scan Network Shared Folder</button>
+        </div>
+
+        <!-- Panel 1: Single File Form -->
+        <div id="panelAddFile" class="tab-panel active">
+          <form id="addSourceForm" class="source-form">
+            <h4 class="form-section-title">Add Network Data Source</h4>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="srcName">Display Name</label>
+                <input type="text" id="srcName" placeholder="e.g. Factory Inventory or Sales 2026" required>
+              </div>
+
+              <div class="form-group">
+                <label for="srcType">Database / File Type</label>
+                <select id="srcType" required>
+                  <option value="access">Microsoft Access (*.accdb, *.mdb)</option>
+                  <option value="excel">Microsoft Excel (*.xlsx, *.xls)</option>
+                </select>
+              </div>
+
+              <div class="form-group col-span-2">
+                <label for="srcPath">Network File Path (UNC or Local / Mapped Drive)</label>
+                <div class="input-action-group">
+                  <input 
+                    type="text" 
+                    id="srcPath" 
+                    placeholder="\\server\shared_folder\database.accdb  or  Z:\inventory\data.xlsx" 
+                    required
+                  >
+                  <button type="button" id="btnTestConnection" class="btn btn-secondary">
+                    Test Connection
+                  </button>
+                </div>
+                <small class="form-hint">Supports UNC paths (e.g. \\server\share\file) and mapped drives (e.g. Z:\path\file).</small>
+              </div>
+
+              <div class="form-group col-span-2" id="testResultBox" style="display: none;">
+                <div class="test-banner" id="testBanner"></div>
+              </div>
+
+              <div class="form-group col-span-2">
+                <label for="srcPassword">Database Password (Optional)</label>
+                <input type="password" id="srcPassword" placeholder="Required for password-protected Access MDB/ACCDB files">
+              </div>
+
+              <div class="form-group col-span-2">
+                <label for="srcDesc">Description (Optional)</label>
+                <input type="text" id="srcDesc" placeholder="e.g. Live inventory shared from manufacturing server">
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" id="btnAddSourceSubmit" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Add Network Source
+              </button>
+              <button type="button" id="btnSeedDemo" class="btn btn-outline" title="Seed realistic sample Access & Excel files">
+                Re-generate Demo Data
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Panel 2: Folder Scanner -->
+        <div id="panelScanFolder" class="tab-panel" style="display: none;">
+          <div class="source-form">
+            <h4 class="form-section-title">Discover All Databases in a Shared Folder</h4>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">
+              Enter a network share directory (e.g. <code>\\server\databases</code> or <code>Z:\NetworkShare</code>). We will automatically scan and find all Access (*.accdb, *.mdb) and Excel (*.xlsx, *.xls) files.
+            </p>
+            <div class="input-action-group">
+              <input type="text" id="scanFolderPath" placeholder="\\server\share\data  or  Z:\Databases">
+              <button type="button" id="btnRunFolderScan" class="btn btn-primary">Scan Directory</button>
+            </div>
+            <div id="scanResultsContainer" style="margin-top: 1rem; display: none;">
+              <h5 id="scanResultsSummary" style="font-size: 0.85rem; font-weight: 700; margin-bottom: 0.5rem;"></h5>
+              <div id="scanDiscoveredList" class="sources-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="modal-divider">
+
+        <!-- Active Sources List -->
+        <h4 class="form-section-title">Connected Sources</h4>
+        <div id="sourcesList" class="sources-list">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+  <!-- Consolidated Database & SQL Explorer Modal -->
+  <div id="consolidatedModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card modal-card-xl">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title-row">
+            <h2 class="modal-title">Consolidated Local Database (SQLite)</h2>
+            <span class="badge-sqlite"><span class="pulse-dot"></span> Ready Locally</span>
+          </div>
+          <p class="modal-subtitle">
+            Consolidated offline-ready SQLite replica of OfferLetters 2026, LANDS 02 MDB, and A2 Allocations Excel. Sub-millisecond queries, zero file-locks.
+          </p>
+        </div>
+        <button id="closeConsolidatedModalBtn" class="btn-icon" aria-label="Close modal">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Action & Stats Bar -->
+      <div class="cdb-action-bar">
+        <div class="cdb-stats-chips">
+          <div class="cdb-chip">
+            <span class="cdb-chip-label">Total Records</span>
+            <span class="cdb-chip-val" id="cdbStatTotalRows">530,895</span>
+          </div>
+          <div class="cdb-chip">
+            <span class="cdb-chip-label">Database Size</span>
+            <span class="cdb-chip-val" id="cdbStatSize">481.8 MB</span>
+          </div>
+          <div class="cdb-chip">
+            <span class="cdb-chip-label">Tables</span>
+            <span class="cdb-chip-val" id="cdbStatTables">107</span>
+          </div>
+          <div class="cdb-chip">
+            <span class="cdb-chip-label">Query Speed</span>
+            <span class="cdb-chip-val highlight-green">&lt; 1 ms</span>
+          </div>
+        </div>
+
+        <div class="cdb-actions-row">
+          <button id="btnTriggerSync" class="btn btn-secondary" title="Re-extract and update tables from network">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+            </svg>
+            <span>Sync from Network</span>
+          </button>
+          <a id="btnDownloadDb" href="/api/database/download" class="btn btn-primary" download="consolidated_lands.db" title="Download standalone SQLite database file">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Download SQLite (.db)</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Sync Progress Notification Banner -->
+      <div id="syncProgressBanner" class="sync-progress-box" style="display: none;">
+        <div class="sync-progress-header">
+          <span id="syncProgressText">Synchronizing tables from local network...</span>
+          <span id="syncProgressCount">0 / 14</span>
+        </div>
+        <div class="progress-bar-track">
+          <div id="syncProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <div class="modal-body modal-body-scroll">
+        <!-- Tabs -->
+        <div class="modal-tabs">
+          <button type="button" class="modal-tab active" id="tabCdbViewer">Table Viewer</button>
+          <button type="button" class="modal-tab" id="tabCdbSql">Interactive SQL Console</button>
+          <button type="button" class="modal-tab" id="tabCdbSchema">Schema & Metadata</button>
+        </div>
+
+        <!-- Panel 1: Table Viewer -->
+        <div id="panelCdbViewer" class="tab-panel active">
+          <div class="viewer-toolbar">
+            <div class="viewer-select-group">
+              <label for="cdbTableSelect">Select Table:</label>
+              <select id="cdbTableSelect" class="form-select">
+                <!-- Dynamically populated -->
+              </select>
+            </div>
+            <div class="viewer-filter-group">
+              <input type="text" id="cdbTableFilter" placeholder="Filter rows..." class="form-input-sm">
+            </div>
+            <div class="viewer-info-badge">
+              <span id="cdbTableMeta">Loading...</span>
+            </div>
+          </div>
+
+          <div class="table-grid-scroll" id="cdbGridScroll">
+            <table class="data-grid" id="cdbDataTable">
+              <thead id="cdbGridHead"></thead>
+              <tbody id="cdbGridBody"></tbody>
+            </table>
+          </div>
+          <div class="grid-footer">
+            <span id="cdbPageInfo">Showing rows 1 - 50</span>
+            <div class="grid-page-btns">
+              <button id="cdbPrevBtn" class="btn btn-sm btn-outline" disabled>Previous</button>
+              <button id="cdbNextBtn" class="btn btn-sm btn-outline">Next</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2: SQL Console -->
+        <div id="panelCdbSql" class="tab-panel" style="display: none;">
+          <div class="sql-console-wrapper">
+            <div class="sql-quick-queries">
+              <span class="quick-label">Sample Queries:</span>
+              <button type="button" class="quick-sql-btn highlight-btn" data-sql="SELECT farm_name, subdivision_number, beneficiary_or_owner, district, province, where_farm_taken_from, source_database FROM vw_consolidated_farms_origin WHERE where_farm_taken_from IS NOT NULL LIMIT 50">📍 Farms: Where Taken From (Master View)</button>
+              <button type="button" class="quick-sql-btn" data-sql="SELECT farm_name, parent_farm_diagm_no, previous_district, current_district, where_farm_taken_from FROM reg2025_masvingo_a1_allocation WHERE parent_farm_diagm_no IS NOT NULL LIMIT 50">Masvingo: Parent Diagrams</button>
+              <button type="button" class="quick-sql-btn" data-sql="SELECT id_number, farm_withdrawn, subdivision_number, subdiv_size, province, district, where_farm_taken_from FROM lands02_farm_withdrawn LIMIT 50">LIMS: Withdrawn Farms Origin</button>
+              <button type="button" class="quick-sql-btn" data-sql="SELECT farm_name, previous_district, current_district, diagram_no, deed_no, owner_name, company_name, where_farm_taken_from FROM ol2026_farm_register LIMIT 50">OfferLetters 2026: Origin &amp; Deeds</button>
+              <button type="button" class="quick-sql-btn" data-sql="SELECT * FROM ol2026_beneficiary_details LIMIT 50">Beneficiaries 2026</button>
+              <button type="button" class="quick-sql-btn" data-sql="SELECT * FROM lands02_farm_details LIMIT 50">LIMS Farm Details (31k)</button>
+              <button type="button" class="quick-sql-btn" data-sql="SELECT * FROM a2_alloc_sheet1 LIMIT 50">A2 Land Allocations (11k)</button>
+            </div>
+
+            <div class="sql-input-row">
+              <textarea id="sqlConsoleInput" rows="4" class="sql-textarea" placeholder="Enter SELECT query (e.g. SELECT * FROM ol2026_beneficiary_details WHERE surname LIKE 'MATS%')">SELECT * FROM ol2026_beneficiary_details LIMIT 50;</textarea>
+            </div>
+
+            <div class="sql-actions-bar">
+              <div class="sql-actions-left">
+                <button type="button" id="btnExecuteSql" class="btn btn-primary">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  <span>Execute SQL Query</span>
+                </button>
+                <span id="sqlExecutionStatus" class="sql-status-text"></span>
+              </div>
+              <div class="sql-actions-right">
+                <button type="button" id="btnExportSqlCsv" class="btn btn-sm btn-outline" style="display: none;">
+                  Export CSV
+                </button>
+              </div>
+            </div>
+
+            <div id="sqlErrorBox" class="test-banner error" style="display: none; margin-top: 0.75rem;"></div>
+
+            <div class="table-grid-scroll sql-grid-container" id="sqlGridScroll" style="display: none;">
+              <table class="data-grid" id="sqlResultTable">
+                <thead id="sqlResultHead"></thead>
+                <tbody id="sqlResultBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 3: Schema Overview -->
+        <div id="panelCdbSchema" class="tab-panel" style="display: none;">
+          <div class="schema-cards-grid" id="cdbSchemaCards">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

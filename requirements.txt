@@ -1,0 +1,12 @@
+# Windows-specific ODBC driver for MS Access
+pyodbc>=5.0.0; sys_platform == 'win32'
+
+# Core spreadsheet and data processing (cross-platform Linux/Mac/Windows)
+openpyxl>=3.1.0
+xlrd>=2.0.1
+pandas>=2.0.0
+
+# API and Server
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+pydantic>=2.0.0
