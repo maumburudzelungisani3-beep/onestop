@@ -1,0 +1,9 @@
+# Tell Vercel to ignore Python backend and only build the frontend
+backend/
+requirements.txt
+data/
+sample_data/
+Dockerfile
+docker-compose.yml
+render.yaml
+start_databridge.bat
