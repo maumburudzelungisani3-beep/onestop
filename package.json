@@ -1,0 +1,9 @@
+{
+  "name": "databridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DataBridge - Unified Access DB & Excel Network Search Web Application",
+  "scripts": {
+    "build": "echo Static build complete"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "cleanUrls": true,
+  "outputDirectory": "frontend",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://databridge-api.onrender.com/api/$1"
+    }
+  ]
+}
