@@ -1,0 +1,8 @@
+[project]
+name = "databridge"
+version = "1.0.0"
+description = "DataBridge Unified Access DB & Excel Network Search"
+requires-python = ">=3.10"
+
+[tool.vercel]
+entrypoint = "backend/main.py:app"
