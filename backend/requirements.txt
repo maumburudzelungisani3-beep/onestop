@@ -13,4 +13,3 @@ pydantic>=2.0.0
 
 # Authentication and WebAuthn / Passkeys (Biometrics)
 webauthn>=2.0.0
-python-jose>=3.3.0

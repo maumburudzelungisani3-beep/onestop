@@ -3,10 +3,11 @@ import json
 import time
 import uuid
 import hmac
+import base64
 import hashlib
 import sqlite3
 import urllib.parse
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Depends, Header, Request, status
@@ -22,12 +23,10 @@ from webauthn.helpers.structs import (
     COSEAlgorithmIdentifier,
 )
 from webauthn.helpers import base64url_to_bytes, bytes_to_base64url, options_to_json
-from jose import jwt, JWTError
 
 # Paths & Security Configurations
 AUTH_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "auth.db")
 SECRET_KEY = os.environ.get("DATABRIDGE_SECRET_KEY", "databridge_super_secure_biometric_jwt_secret_key_2026")
-ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 14
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -82,7 +81,16 @@ def init_auth_db():
 init_auth_db()
 
 # --- Password & Token Helpers ---
-def hash_password(password: str, salt: Optional[str] = None) -> (str, str):
+def base64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode('utf-8').rstrip('=')
+
+def base64url_decode(s: str) -> bytes:
+    padding = 4 - (len(s) % 4)
+    if padding != 4:
+        s += '=' * padding
+    return base64.urlsafe_b64decode(s)
+
+def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:
     if not salt:
         salt = os.urandom(16).hex()
     pwd_hash = hashlib.pbkdf2_hmac(
@@ -98,17 +106,38 @@ def verify_password(password: str, pwd_hash: str, salt: str) -> bool:
     return hmac.compare_digest(expected_hash, pwd_hash)
 
 def create_access_token(user_id: str, username: str, role: str) -> str:
-    expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+    header = {"alg": "HS256", "typ": "JWT"}
+    exp = int(time.time()) + (ACCESS_TOKEN_EXPIRE_DAYS * 86400)
     payload = {
         "sub": user_id,
         "username": username,
         "role": role,
-        "exp": expire,
-        "iat": datetime.utcnow(),
+        "exp": exp,
+        "iat": int(time.time()),
     }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    h_b64 = base64url_encode(json.dumps(header, separators=(',', ':')).encode('utf-8'))
+    p_b64 = base64url_encode(json.dumps(payload, separators=(',', ':')).encode('utf-8'))
+    signing_input = f"{h_b64}.{p_b64}".encode('utf-8')
+    sig = hmac.new(SECRET_KEY.encode('utf-8'), signing_input, hashlib.sha256).digest()
+    sig_b64 = base64url_encode(sig)
+    return f"{h_b64}.{p_b64}.{sig_b64}"
 
-def get_rp_id_and_origin(request: Request) -> (str, str):
+def decode_access_token(token: str) -> Dict[str, Any]:
+    parts = token.split('.')
+    if len(parts) != 3:
+        raise ValueError("Invalid token format")
+    h_b64, p_b64, sig_b64 = parts
+    signing_input = f"{h_b64}.{p_b64}".encode('utf-8')
+    expected_sig = hmac.new(SECRET_KEY.encode('utf-8'), signing_input, hashlib.sha256).digest()
+    actual_sig = base64url_decode(sig_b64)
+    if not hmac.compare_digest(expected_sig, actual_sig):
+        raise ValueError("Signature verification failed")
+    payload = json.loads(base64url_decode(p_b64).decode('utf-8'))
+    if payload.get("exp", 0) < time.time():
+        raise ValueError("Token has expired")
+    return payload
+
+def get_rp_id_and_origin(request: Request) -> Tuple[str, str]:
     """Dynamically determine RP ID and expected origin based on request headers."""
     # Check Origin header, then Referer, then Host
     origin = request.headers.get("origin")
@@ -149,12 +178,12 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[str, A
         )
     token = authorization.split(" ")[1]
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = decode_access_token(token)
         user_id: str = payload.get("sub")
         if not user_id:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired or is invalid")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 
     conn = get_auth_db()
     cur = conn.cursor()
