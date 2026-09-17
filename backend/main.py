@@ -5,7 +5,7 @@ import time
 import traceback
 import pandas as pd
 from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, HTTPException, Query, Response, Depends
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +18,7 @@ from backend.connectors.sqlite_connector import SQLiteConnector
 from backend.etl_pipeline import get_sync_status, start_sync_background, CONSOLIDATED_DB_PATH
 from backend.search_engine import SearchEngine
 from backend.demo_data import seed_demo_data
+from backend.auth import router as auth_router, get_current_user, get_optional_user
 
 # Global startup diagnostics for the /api/database/health endpoint
 _STARTUP_DIAGNOSTICS: Dict[str, Any] = {
@@ -42,6 +43,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include Authentication and WebAuthn / Passkeys Router
+app.include_router(auth_router)
 
 class TestSourcePayload(BaseModel):
     type: str  # "access" or "excel"
@@ -133,7 +137,7 @@ def startup_event():
             print(f"Startup demo data seeding notice: {e}")
 
 @app.get("/api/sources")
-def get_sources():
+def get_sources(current_user: Dict[str, Any] = Depends(get_current_user)):
     """Returns all configured data sources along with current reachability status"""
     sources = AppConfig.get_sources()
     enriched = []
@@ -146,7 +150,7 @@ def get_sources():
     return enriched
 
 @app.post("/api/sources/test")
-def test_source(payload: TestSourcePayload):
+def test_source(payload: TestSourcePayload, current_user: Dict[str, Any] = Depends(get_current_user)):
     """Verifies file path reachability and inspects available tables/sheets"""
     path = payload.path.strip()
     stype = payload.type.lower().strip()
@@ -171,7 +175,7 @@ def test_source(payload: TestSourcePayload):
         raise HTTPException(status_code=400, detail=f"Unsupported source type '{stype}'. Must be 'access', 'excel', or 'sqlite'.")
 
 @app.post("/api/sources/scan-folder")
-def scan_network_folder(payload: ScanFolderPayload):
+def scan_network_folder(payload: ScanFolderPayload, current_user: Dict[str, Any] = Depends(get_current_user)):
     """Scans a network directory (UNC or mapped drive) for Access and Excel files"""
     folder = payload.folder_path.strip()
     if not os.path.exists(folder):
@@ -223,7 +227,7 @@ def scan_network_folder(payload: ScanFolderPayload):
     }
 
 @app.post("/api/sources")
-def add_source(payload: CreateSourcePayload):
+def add_source(payload: CreateSourcePayload, current_user: Dict[str, Any] = Depends(get_current_user)):
     """Adds or updates a network data source"""
     path = payload.path.strip()
     stype = payload.type.lower().strip()
@@ -255,7 +259,7 @@ def add_source(payload: CreateSourcePayload):
     return saved
 
 @app.put("/api/sources/{source_id}")
-def update_source(source_id: str, payload: UpdateSourcePayload):
+def update_source(source_id: str, payload: UpdateSourcePayload, current_user: Dict[str, Any] = Depends(get_current_user)):
     """Updates an existing data source"""
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}
     updated = AppConfig.update_source(source_id, updates)
@@ -264,7 +268,7 @@ def update_source(source_id: str, payload: UpdateSourcePayload):
     return updated
 
 @app.delete("/api/sources/{source_id}")
-def delete_source(source_id: str):
+def delete_source(source_id: str, current_user: Dict[str, Any] = Depends(get_current_user)):
     """Removes a configured data source"""
     deleted = AppConfig.delete_source(source_id)
     if not deleted:
@@ -272,7 +276,7 @@ def delete_source(source_id: str):
     return {"success": True, "message": "Source removed successfully."}
 
 @app.get("/api/sources/{source_id}/schema")
-def get_source_schema(source_id: str):
+def get_source_schema(source_id: str, current_user: Dict[str, Any] = Depends(get_current_user)):
     """Returns the schema (tables/sheets and their columns) of a source"""
     sources = [s for s in AppConfig.get_sources() if s.id == source_id]
     if not sources:
@@ -291,7 +295,8 @@ def search(
     source_id: Optional[str] = Query(None, description="Optional source ID filter"),
     source_type: Optional[str] = Query(None, description="'access', 'excel', or 'all'"),
     limit: int = Query(50, ge=1, le=500),
-    offset: int = Query(0, ge=0)
+    offset: int = Query(0, ge=0),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Executes multi-source search across Access databases and Excel workbooks"""
     return SearchEngine.search(
@@ -306,7 +311,8 @@ def search(
 def export_results(
     q: str = Query("", description="Search term to export"),
     format: str = Query("csv", pattern="^(csv|excel)$"),
-    source_id: Optional[str] = Query(None)
+    source_id: Optional[str] = Query(None),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Exports matching search results to CSV or Excel file"""
     res = SearchEngine.search(query=q, source_id=source_id, limit=500, offset=0)
@@ -351,7 +357,7 @@ class SQLQueryPayload(BaseModel):
     offset: Optional[int] = 0
 
 @app.post("/api/sync/start")
-def trigger_sync():
+def trigger_sync(current_user: Dict[str, Any] = Depends(get_current_user)):
     """Starts background ETL extraction of all network databases into local SQLite"""
     started = start_sync_background()
     if not started:
@@ -359,13 +365,13 @@ def trigger_sync():
     return {"success": True, "message": "Extraction and consolidation started in background."}
 
 @app.get("/api/sync/status")
-def sync_status():
+def sync_status(current_user: Dict[str, Any] = Depends(get_current_user)):
     """Returns current extraction and consolidation status"""
     return get_sync_status()
 
 @app.get("/api/database/health")
 def database_health():
-    """Returns diagnostic information about the consolidated database status — useful for debugging deployments"""
+    """Returns diagnostic information about the consolidated database status — useful for debugging deployments (Public)"""
     db_exists = os.path.exists(CONSOLIDATED_DB_PATH)
     zip_path = os.path.join(os.path.dirname(CONSOLIDATED_DB_PATH), "consolidated_lands.db.zip")
     zip_exists = os.path.exists(zip_path)
@@ -408,12 +414,12 @@ def database_health():
     return health
 
 @app.get("/api/database/stats")
-def database_stats():
+def database_stats(current_user: Dict[str, Any] = Depends(get_current_user)):
     """Returns consolidated SQLite database tables, row counts, and metadata"""
     return SQLiteConnector.get_database_stats(CONSOLIDATED_DB_PATH)
 
 @app.post("/api/database/query")
-def execute_sql(payload: SQLQueryPayload):
+def execute_sql(payload: SQLQueryPayload, current_user: Dict[str, Any] = Depends(get_current_user)):
     """Executes safe, read-only SQL queries against the consolidated database"""
     try:
         res = SQLiteConnector.execute_query(
@@ -427,7 +433,7 @@ def execute_sql(payload: SQLQueryPayload):
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/database/download")
-def download_database():
+def download_database(current_user: Dict[str, Any] = Depends(get_current_user)):
     """Provides direct download of the standalone consolidated SQLite database"""
     if not os.path.exists(CONSOLIDATED_DB_PATH):
         raise HTTPException(status_code=404, detail="Consolidated database not found. Run sync first.")
@@ -438,7 +444,7 @@ def download_database():
     )
 
 @app.post("/api/demo/seed")
-def seed_demo():
+def seed_demo(current_user: Dict[str, Any] = Depends(get_current_user)):
     """Generates sample Access database and Excel sheets for instant testing"""
     result = seed_demo_data()
     return {"success": True, "message": "Sample databases and workbooks generated successfully!", "paths": result}

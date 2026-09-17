@@ -12,6 +12,25 @@ function getApiUrl(path) {
   return path;
 }
 
+// Centralized API fetch wrapper with token injection & 401 interception
+async function apiFetch(path, options = {}) {
+  const url = path.startsWith('http') ? path : getApiUrl(path);
+  const token = localStorage.getItem('databridge_token');
+  const headers = {
+    ...(options.headers || {})
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401 && !url.includes('/api/auth/')) {
+    console.warn('[AUTH] Received 401. Showing access gate.');
+    showAuthOverlay();
+  }
+  return res;
+}
+
+
 // Application State
 const state = {
   query: '',
@@ -85,9 +104,13 @@ const elements = {
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   setupEventListeners();
-  await loadSources();
-  await initConsolidatedDb();
-  await executeSearch();
+  initAuthSystem();
+  const isAuthenticated = await checkAuthStatus();
+  if (isAuthenticated) {
+    await loadSources();
+    await initConsolidatedDb();
+    await executeSearch();
+  }
 });
 
 // =============================================================================
@@ -223,7 +246,7 @@ function setupEventListeners() {
 
 async function loadSources() {
   try {
-    const res = await fetch(getApiUrl('/api/sources'));
+    const res = await apiFetch('/api/sources');
     if (res.ok) {
       state.sources = await res.json();
       updateSourcesUI();
@@ -254,7 +277,7 @@ async function executeSearch() {
       params.append('source_id', state.activeSourceId);
     }
 
-    const res = await fetch(getApiUrl(`/api/search?${params.toString()}`));
+    const res = await apiFetch(`/api/search?${params.toString()}`);
     if (res.ok) {
       const data = await res.json();
       state.results = data.results || [];
@@ -765,7 +788,7 @@ async function testSourceConnection() {
   elements.btnTestConnection.textContent = 'Testing...';
 
   try {
-    const res = await fetch(getApiUrl('/api/sources/test'), {
+    const res = await apiFetch('/api/sources/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, path, password })
@@ -815,7 +838,7 @@ async function handleAddSource(e) {
   const description = elements.srcDesc.value.trim();
 
   try {
-    const res = await fetch(getApiUrl('/api/sources'), {
+    const res = await apiFetch('/api/sources', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, type, path, password, description, enabled: true })
@@ -851,7 +874,7 @@ async function handleRunFolderScan() {
   btn.textContent = 'Scanning...';
 
   try {
-    const res = await fetch(getApiUrl('/api/sources/scan-folder'), {
+    const res = await apiFetch('/api/sources/scan-folder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ folder_path: folderPath, recursive: true })
@@ -889,7 +912,7 @@ async function handleRunFolderScan() {
           addBtn.textContent = 'Adding...';
 
           try {
-            await fetch(getApiUrl('/api/sources'), {
+            await apiFetch('/api/sources', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -929,7 +952,7 @@ async function handleRunFolderScan() {
 
 async function toggleSourceEnabled(sourceId, enabled) {
   try {
-    const res = await fetch(getApiUrl(`/api/sources/${sourceId}`), {
+    const res = await apiFetch(`/api/sources/${sourceId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled })
@@ -945,7 +968,7 @@ async function toggleSourceEnabled(sourceId, enabled) {
 
 async function deleteSource(sourceId) {
   try {
-    const res = await fetch(getApiUrl(`/api/sources/${sourceId}`), {
+    const res = await apiFetch(`/api/sources/${sourceId}`, {
       method: 'DELETE'
     });
     if (res.ok) {
@@ -960,7 +983,7 @@ async function deleteSource(sourceId) {
 async function handleSeedDemo() {
   if (!confirm('Re-generate sample Access database & Excel sheets?')) return;
   try {
-    const res = await fetch(getApiUrl('/api/demo/seed'), { method: 'POST' });
+    const res = await apiFetch('/api/demo/seed', { method: 'POST' });
     if (res.ok) {
       await loadSources();
       await executeSearch();
@@ -1025,7 +1048,7 @@ async function initConsolidatedDb() {
 
 async function loadConsolidatedDbStats() {
   try {
-    const res = await fetch(getApiUrl('/api/database/stats'));
+    const res = await apiFetch('/api/database/stats');
     if (!res.ok) return;
     const stats = await res.json();
     cdbState.stats = stats;
@@ -1209,7 +1232,7 @@ async function loadTableData(tableName, page = 1) {
   if (metaEl) metaEl.textContent = 'Querying local SQLite database...';
 
   try {
-    const res = await fetch(getApiUrl('/api/database/query'), {
+    const res = await apiFetch('/api/database/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sql })
@@ -1299,7 +1322,7 @@ async function executeSqlQuery() {
   if (errorBox) errorBox.style.display = 'none';
 
   try {
-    const res = await fetch(getApiUrl('/api/database/query'), {
+    const res = await apiFetch('/api/database/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sql, limit: 100 })
@@ -1361,7 +1384,7 @@ async function startNetworkSync() {
   if (btnSync) btnSync.disabled = true;
 
   try {
-    const res = await fetch(getApiUrl('/api/sync/start'), { method: 'POST' });
+    const res = await apiFetch('/api/sync/start', { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'Failed to start sync');
 
@@ -1369,7 +1392,7 @@ async function startNetworkSync() {
     clearInterval(cdbState.syncPollingTimer);
     cdbState.syncPollingTimer = setInterval(async () => {
       try {
-        const sRes = await fetch(getApiUrl('/api/sync/status'));
+        const sRes = await apiFetch('/api/sync/status');
         const sData = await sRes.json();
 
         if (sData.status === 'running') {
@@ -1401,4 +1424,502 @@ async function startNetworkSync() {
     if (banner) banner.style.display = 'none';
     if (btnSync) btnSync.disabled = false;
   }
+}
+
+// =============================================================================
+// Access Control & Mobile Biometrics (WebAuthn / Passkeys) Controller
+// =============================================================================
+
+function bufferToBase64URL(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+function base64URLToBuffer(base64URL) {
+  let base64 = base64URL.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4) {
+    base64 += '=';
+  }
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+function showAuthOverlay() {
+  const overlay = document.getElementById('authGateOverlay');
+  if (overlay) {
+    overlay.classList.remove('hidden');
+    overlay.style.display = 'flex';
+  }
+}
+
+function hideAuthOverlay() {
+  const overlay = document.getElementById('authGateOverlay');
+  if (overlay) {
+    overlay.classList.add('hidden');
+    setTimeout(() => { overlay.style.display = 'none'; }, 300);
+  }
+}
+
+function showAuthBiometricView() {
+  document.getElementById('authViewBiometric').style.display = 'block';
+  document.getElementById('authViewPassword').style.display = 'none';
+  document.getElementById('authViewSetup').style.display = 'none';
+  clearAuthAlert();
+}
+
+function showAuthPasswordView() {
+  document.getElementById('authViewBiometric').style.display = 'none';
+  document.getElementById('authViewPassword').style.display = 'block';
+  document.getElementById('authViewSetup').style.display = 'none';
+  clearAuthAlert();
+  const input = document.getElementById('loginUsername');
+  if (input) input.focus();
+}
+
+function showAuthSetupView() {
+  document.getElementById('authViewBiometric').style.display = 'none';
+  document.getElementById('authViewPassword').style.display = 'none';
+  document.getElementById('authViewSetup').style.display = 'block';
+  clearAuthAlert();
+  const input = document.getElementById('setupPassword');
+  if (input) input.focus();
+}
+
+function setAuthAlert(message, type = 'error') {
+  const banner = document.getElementById('authAlertBanner');
+  if (banner) {
+    banner.className = `auth-alert-banner ${type}`;
+    banner.textContent = message;
+    banner.style.display = 'block';
+  }
+}
+
+function clearAuthAlert() {
+  const banner = document.getElementById('authAlertBanner');
+  if (banner) {
+    banner.textContent = '';
+    banner.style.display = 'none';
+  }
+}
+
+function setLoggedInUser(user) {
+  state.currentUser = user;
+  const profileSection = document.getElementById('userProfileSection');
+  const usernameLabel = document.getElementById('headerUsername');
+  if (profileSection) profileSection.style.display = 'flex';
+  if (usernameLabel && user) usernameLabel.textContent = user.username || user.display_name || 'Admin';
+}
+
+async function checkBiometricHardware() {
+  const label = document.getElementById('biometricSupportLabel');
+  const dot = document.querySelector('.status-dot-active') || document.querySelector('.status-dot-warning');
+  if (window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+    try {
+      const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      if (available) {
+        if (label) label.textContent = 'Mobile Biometrics (Fingerprint / Face ID): Active & Ready';
+        return true;
+      } else {
+        if (label) label.textContent = 'Passkey hardware detected. Use sensor or PIN below.';
+        return true;
+      }
+    } catch (e) {
+      if (label) label.textContent = 'Hardware biometrics ready via WebAuthn';
+      return true;
+    }
+  } else {
+    if (label) label.textContent = 'WebAuthn unavailable on this browser or protocol. Use Password/PIN.';
+    if (dot) dot.className = 'status-dot-warning';
+    return false;
+  }
+}
+
+async function loginWithBiometrics() {
+  clearAuthAlert();
+  const btn = document.getElementById('btnBiometricLogin');
+  if (btn) btn.classList.add('scanning');
+
+  try {
+    const optRes = await fetch(getApiUrl('/api/auth/webauthn/login-options'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+
+    if (!optRes.ok) {
+      const err = await optRes.json();
+      throw new Error(err.detail || 'Unable to retrieve biometric challenge.');
+    }
+
+    const { challenge_id, options } = await optRes.json();
+
+    options.challenge = base64URLToBuffer(options.challenge);
+    if (options.allowCredentials && options.allowCredentials.length > 0) {
+      options.allowCredentials = options.allowCredentials.map(c => ({
+        ...c,
+        id: base64URLToBuffer(c.id)
+      }));
+    }
+
+    const assertion = await navigator.credentials.get({ publicKey: options });
+    if (!assertion) {
+      throw new Error('Biometric authentication cancelled.');
+    }
+
+    const assertionJSON = {
+      id: assertion.id,
+      rawId: bufferToBase64URL(assertion.rawId),
+      type: assertion.type,
+      response: {
+        clientDataJSON: bufferToBase64URL(assertion.response.clientDataJSON),
+        authenticatorData: bufferToBase64URL(assertion.response.authenticatorData),
+        signature: bufferToBase64URL(assertion.response.signature),
+        userHandle: assertion.response.userHandle ? bufferToBase64URL(assertion.response.userHandle) : null
+      }
+    };
+
+    const verifyRes = await fetch(getApiUrl('/api/auth/webauthn/login-verify'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        challenge_id,
+        credential: assertionJSON
+      })
+    });
+
+    const data = await verifyRes.json();
+    if (!verifyRes.ok) {
+      throw new Error(data.detail || 'Biometric verification failed.');
+    }
+
+    localStorage.setItem('databridge_token', data.access_token);
+    setLoggedInUser(data.user);
+    hideAuthOverlay();
+    setAuthAlert('Authenticated successfully!', 'success');
+
+    await loadSources();
+    await initConsolidatedDb();
+    await executeSearch();
+
+  } catch (err) {
+    console.error('Biometric login error:', err);
+    let msg = err.message || 'Biometric authentication failed.';
+    if (err.name === 'NotAllowedError') {
+      msg = 'Biometric scan was canceled or timed out. Tap again to retry.';
+    } else if (err.name === 'SecurityError') {
+      msg = 'WebAuthn requires HTTPS or localhost.';
+    }
+    setAuthAlert(msg, 'error');
+  } finally {
+    if (btn) btn.classList.remove('scanning');
+  }
+}
+
+async function enrollCurrentDevice() {
+  try {
+    const btn = document.getElementById('btnEnrollCurrentDevice');
+    if (btn) btn.disabled = true;
+
+    let deviceName = 'Mobile Phone';
+    const ua = navigator.userAgent;
+    if (/Android/i.test(ua)) deviceName = 'Android Mobile (Fingerprint)';
+    else if (/iPhone|iPad/i.test(ua)) deviceName = 'Apple Mobile (Face ID / Touch ID)';
+    else if (/Windows/i.test(ua)) deviceName = 'Windows PC (Hello Biometrics)';
+    else if (/Mac/i.test(ua)) deviceName = 'Mac (Touch ID)';
+
+    const optRes = await apiFetch('/api/auth/webauthn/register-options');
+    if (!optRes.ok) {
+      const err = await optRes.json();
+      throw new Error(err.detail || 'Failed to initialize biometric registration');
+    }
+
+    const { challenge_id, options } = await optRes.json();
+    options.challenge = base64URLToBuffer(options.challenge);
+    options.user.id = base64URLToBuffer(options.user.id);
+    if (options.excludeCredentials) {
+      options.excludeCredentials = options.excludeCredentials.map(c => ({
+        ...c,
+        id: base64URLToBuffer(c.id)
+      }));
+    }
+
+    const credential = await navigator.credentials.create({ publicKey: options });
+    if (!credential) {
+      throw new Error('Device enrollment cancelled.');
+    }
+
+    const credJSON = {
+      id: credential.id,
+      rawId: bufferToBase64URL(credential.rawId),
+      type: credential.type,
+      response: {
+        clientDataJSON: bufferToBase64URL(credential.response.clientDataJSON),
+        attestationObject: bufferToBase64URL(credential.response.attestationObject),
+        transports: credential.response.getTransports ? credential.response.getTransports() : []
+      }
+    };
+
+    const verifyRes = await apiFetch('/api/auth/webauthn/register-verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        challenge_id,
+        credential: credJSON,
+        device_name: deviceName
+      })
+    });
+
+    const verifyData = await verifyRes.json();
+    if (!verifyRes.ok) {
+      throw new Error(verifyData.detail || 'Biometric enrollment failed');
+    }
+
+    alert('✅ Biometric device enrolled successfully! You can now use 1-tap fingerprint/Face ID sign-in.');
+    await loadEnrolledDevices();
+
+  } catch (err) {
+    console.error('Enrollment error:', err);
+    alert('Biometric Enrollment: ' + (err.message || 'Error creating passkey'));
+  } finally {
+    const btn = document.getElementById('btnEnrollCurrentDevice');
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function loadEnrolledDevices() {
+  const container = document.getElementById('enrolledDevicesContainer');
+  if (!container) return;
+
+  try {
+    const res = await apiFetch('/api/auth/me');
+    if (!res.ok) {
+      container.innerHTML = '<div class="empty-devices-state">Sign in to view enrolled devices.</div>';
+      return;
+    }
+    const data = await res.json();
+    const devices = data.enrolled_devices || [];
+
+    if (devices.length === 0) {
+      container.innerHTML = `
+        <div class="empty-devices-state">
+          <p>No mobile phones or passkeys enrolled yet.</p>
+          <p class="text-sm">Click "Enroll Sensor" above to register your mobile phone.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = devices.map(d => `
+      <div class="device-item-row" data-id="${d.id}">
+        <div class="device-item-left">
+          <div class="device-phone-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+              <line x1="12" y1="18" x2="12.01" y2="18"></line>
+            </svg>
+          </div>
+          <div>
+            <div class="device-info-name">${escapeHtml(d.device_name || 'Mobile Phone')}</div>
+            <div class="device-info-date">Enrolled ${new Date(d.created_at).toLocaleDateString()}</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline btn-delete-device" data-id="${d.id}" title="Remove Device">
+          Remove
+        </button>
+      </div>
+    `).join('');
+
+    container.querySelectorAll('.btn-delete-device').forEach(b => {
+      b.addEventListener('click', async (e) => {
+        const id = e.currentTarget.getAttribute('data-id');
+        if (confirm('Are you sure you want to remove this biometric authenticator?')) {
+          await deleteEnrolledDevice(id);
+        }
+      });
+    });
+
+  } catch (err) {
+    container.innerHTML = '<div class="empty-devices-state">Error loading devices.</div>';
+  }
+}
+
+async function deleteEnrolledDevice(credId) {
+  try {
+    const res = await apiFetch(`/api/auth/credentials/${encodeURIComponent(credId)}`, { method: 'DELETE' });
+    if (res.ok) {
+      await loadEnrolledDevices();
+    } else {
+      alert('Failed to delete authenticator');
+    }
+  } catch (e) {
+    alert('Error removing device');
+  }
+}
+
+async function checkAuthStatus() {
+  try {
+    const token = localStorage.getItem('databridge_token');
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch(getApiUrl('/api/auth/status'), { headers });
+    const data = await res.json();
+
+    if (!data.auth_configured) {
+      showAuthSetupView();
+      showAuthOverlay();
+      return false;
+    }
+
+    if (data.current_user) {
+      setLoggedInUser(data.current_user);
+      hideAuthOverlay();
+      return true;
+    } else {
+      showAuthBiometricView();
+      showAuthOverlay();
+      return false;
+    }
+  } catch (err) {
+    console.error('Error checking auth:', err);
+    showAuthOverlay();
+    return false;
+  }
+}
+
+function initAuthSystem() {
+  checkBiometricHardware();
+
+  const btnBio = document.getElementById('btnBiometricLogin');
+  if (btnBio) btnBio.addEventListener('click', loginWithBiometrics);
+
+  const btnToPwd = document.getElementById('btnSwitchToPassword');
+  if (btnToPwd) btnToPwd.addEventListener('click', showAuthPasswordView);
+
+  const btnToBio = document.getElementById('btnSwitchToBiometric');
+  if (btnToBio) btnToBio.addEventListener('click', showAuthBiometricView);
+
+  const formLogin = document.getElementById('formPasswordLogin');
+  if (formLogin) {
+    formLogin.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearAuthAlert();
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+
+      try {
+        const res = await fetch(getApiUrl('/api/auth/login'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || 'Invalid credentials');
+        }
+
+        localStorage.setItem('databridge_token', data.access_token);
+        setLoggedInUser(data.user);
+        hideAuthOverlay();
+
+        await loadSources();
+        await initConsolidatedDb();
+        await executeSearch();
+
+      } catch (err) {
+        setAuthAlert(err.message || 'Login failed', 'error');
+      }
+    });
+  }
+
+  const formSetup = document.getElementById('formInitialSetup');
+  if (formSetup) {
+    formSetup.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearAuthAlert();
+      const username = document.getElementById('setupUsername').value.trim();
+      const displayName = document.getElementById('setupDisplayName').value.trim();
+      const password = document.getElementById('setupPassword').value;
+      const confirm = document.getElementById('setupPasswordConfirm').value;
+
+      if (password !== confirm) {
+        setAuthAlert('Passwords do not match.', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch(getApiUrl('/api/auth/setup'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username,
+            password,
+            display_name: displayName
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || 'Setup failed');
+        }
+
+        localStorage.setItem('databridge_token', data.access_token);
+        setLoggedInUser(data.user);
+        hideAuthOverlay();
+
+        setTimeout(async () => {
+          if (confirm('🎉 Administrator created! Would you like to enroll this mobile phone / device for 1-tap fingerprint/Face ID sign-in right now?')) {
+            await enrollCurrentDevice();
+          }
+        }, 400);
+
+        await loadSources();
+        await initConsolidatedDb();
+        await executeSearch();
+
+      } catch (err) {
+        setAuthAlert(err.message || 'Setup error', 'error');
+      }
+    });
+  }
+
+  const btnLogout = document.getElementById('btnLogoutBtn');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      if (confirm('Log out of DataBridge?')) {
+        localStorage.removeItem('databridge_token');
+        state.currentUser = null;
+        const profileSection = document.getElementById('userProfileSection');
+        if (profileSection) profileSection.style.display = 'none';
+        showAuthBiometricView();
+        showAuthOverlay();
+      }
+    });
+  }
+
+  const btnOpenDev = document.getElementById('btnOpenDevicesModal');
+  const modalDev = document.getElementById('modalDevicesManager');
+  const btnCloseDev = document.getElementById('btnCloseDevicesModal');
+  const btnDoneDev = document.getElementById('btnDoneDevicesModal');
+  const btnEnrollNow = document.getElementById('btnEnrollCurrentDevice');
+
+  if (btnOpenDev && modalDev) {
+    btnOpenDev.addEventListener('click', async () => {
+      modalDev.style.display = 'flex';
+      await loadEnrolledDevices();
+    });
+  }
+
+  const closeDevModal = () => { if (modalDev) modalDev.style.display = 'none'; };
+  if (btnCloseDev) btnCloseDev.addEventListener('click', closeDevModal);
+  if (btnDoneDev) btnDoneDev.addEventListener('click', closeDevModal);
+  if (btnEnrollNow) btnEnrollNow.addEventListener('click', enrollCurrentDevice);
 }
