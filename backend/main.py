@@ -72,8 +72,7 @@ class UpdateSourcePayload(BaseModel):
     tables_or_sheets: Optional[List[str]] = None
     password: Optional[str] = None
 
-@app.on_event("startup")
-def startup_event():
+def _extract_database_if_needed():
     global _STARTUP_DIAGNOSTICS
 
     data_dir = os.path.dirname(CONSOLIDATED_DB_PATH)
@@ -135,6 +134,17 @@ def startup_event():
             seed_demo_data()
         except Exception as e:
             print(f"Startup demo data seeding notice: {e}")
+
+@app.on_event("startup")
+def startup_event():
+    # Start extraction in background thread so uvicorn binds port instantly for Render health checks
+    import threading
+    threading.Thread(target=_extract_database_if_needed, daemon=True).start()
+
+@app.get("/healthz")
+def healthz():
+    """Instant health check for Render and deployment monitors (0ms response)"""
+    return {"status": "ok"}
 
 @app.get("/api/sources")
 def get_sources(current_user: Dict[str, Any] = Depends(get_current_user)):
