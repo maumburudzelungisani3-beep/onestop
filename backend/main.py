@@ -1,6 +1,8 @@
 import os
 import io
 import csv
+import time
+import traceback
 import pandas as pd
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, Query, Response
@@ -16,6 +18,15 @@ from backend.connectors.sqlite_connector import SQLiteConnector
 from backend.etl_pipeline import get_sync_status, start_sync_background, CONSOLIDATED_DB_PATH
 from backend.search_engine import SearchEngine
 from backend.demo_data import seed_demo_data
+
+# Global startup diagnostics for the /api/database/health endpoint
+_STARTUP_DIAGNOSTICS: Dict[str, Any] = {
+    "extraction_attempted": False,
+    "extraction_success": False,
+    "extraction_error": None,
+    "extraction_duration_seconds": None,
+    "db_existed_before_startup": False,
+}
 
 app = FastAPI(
     title="DataBridge - Unified Network DB & Excel Search",
@@ -59,18 +70,59 @@ class UpdateSourcePayload(BaseModel):
 
 @app.on_event("startup")
 def startup_event():
+    global _STARTUP_DIAGNOSTICS
+
+    data_dir = os.path.dirname(CONSOLIDATED_DB_PATH)
+    os.makedirs(data_dir, exist_ok=True)
+
+    _STARTUP_DIAGNOSTICS["db_existed_before_startup"] = os.path.exists(CONSOLIDATED_DB_PATH)
+
     # If uncompressed database is missing (e.g. fresh cloud deployment), auto-extract from committed zip
     if not os.path.exists(CONSOLIDATED_DB_PATH):
-        zip_path = os.path.join(os.path.dirname(CONSOLIDATED_DB_PATH), "consolidated_lands.db.zip")
-        if os.path.exists(zip_path):
+        zip_path = os.path.join(data_dir, "consolidated_lands.db.zip")
+        zip_exists = os.path.exists(zip_path)
+        print(f"[STARTUP] Consolidated DB missing at {CONSOLIDATED_DB_PATH}")
+        print(f"[STARTUP] Zip archive {'found' if zip_exists else 'NOT FOUND'} at {zip_path}")
+
+        if zip_exists:
+            _STARTUP_DIAGNOSTICS["extraction_attempted"] = True
+            t0 = time.time()
             try:
-                print(f"Extracting {zip_path} to {os.path.dirname(CONSOLIDATED_DB_PATH)}...")
+                zip_size_mb = round(os.path.getsize(zip_path) / (1024 * 1024), 2)
+                print(f"[STARTUP] Extracting database from zip ({zip_size_mb} MB)...")
+
                 import zipfile
                 with zipfile.ZipFile(zip_path, "r") as zf:
-                    zf.extractall(os.path.dirname(CONSOLIDATED_DB_PATH))
-                print("Consolidated database extracted successfully.")
+                    # Stream-extract each member to reduce peak memory usage
+                    for member in zf.infolist():
+                        print(f"[STARTUP]   Extracting: {member.filename} ({round(member.file_size / (1024 * 1024), 1)} MB)")
+                        zf.extract(member, data_dir)
+
+                elapsed = round(time.time() - t0, 1)
+                _STARTUP_DIAGNOSTICS["extraction_duration_seconds"] = elapsed
+
+                if os.path.exists(CONSOLIDATED_DB_PATH):
+                    db_size_mb = round(os.path.getsize(CONSOLIDATED_DB_PATH) / (1024 * 1024), 2)
+                    _STARTUP_DIAGNOSTICS["extraction_success"] = True
+                    print(f"[STARTUP] ✅ Database extracted successfully: {db_size_mb} MB in {elapsed}s")
+                else:
+                    _STARTUP_DIAGNOSTICS["extraction_error"] = "Zip extracted but .db file not found on disk afterwards"
+                    print(f"[STARTUP] ⚠️ Zip extracted but database file not found at {CONSOLIDATED_DB_PATH}")
+
             except Exception as e:
-                print(f"Failed to auto-extract consolidated database: {e}")
+                elapsed = round(time.time() - t0, 1)
+                err_msg = f"{type(e).__name__}: {e}"
+                _STARTUP_DIAGNOSTICS["extraction_error"] = err_msg
+                _STARTUP_DIAGNOSTICS["extraction_duration_seconds"] = elapsed
+                print(f"[STARTUP] ❌ Failed to extract consolidated database after {elapsed}s: {err_msg}")
+                traceback.print_exc()
+        else:
+            _STARTUP_DIAGNOSTICS["extraction_error"] = "Zip archive not found in deployment"
+            print(f"[STARTUP] ❌ No zip archive found — database will be unavailable")
+    else:
+        db_size_mb = round(os.path.getsize(CONSOLIDATED_DB_PATH) / (1024 * 1024), 2)
+        print(f"[STARTUP] ✅ Consolidated database already exists: {db_size_mb} MB")
+        _STARTUP_DIAGNOSTICS["extraction_success"] = True
 
     # Ensure initial demo sources exist if sources.json is empty
     sources = AppConfig.get_sources()
@@ -310,6 +362,50 @@ def trigger_sync():
 def sync_status():
     """Returns current extraction and consolidation status"""
     return get_sync_status()
+
+@app.get("/api/database/health")
+def database_health():
+    """Returns diagnostic information about the consolidated database status — useful for debugging deployments"""
+    db_exists = os.path.exists(CONSOLIDATED_DB_PATH)
+    zip_path = os.path.join(os.path.dirname(CONSOLIDATED_DB_PATH), "consolidated_lands.db.zip")
+    zip_exists = os.path.exists(zip_path)
+
+    health = {
+        "database_path": CONSOLIDATED_DB_PATH,
+        "database_exists": db_exists,
+        "database_size_mb": round(os.path.getsize(CONSOLIDATED_DB_PATH) / (1024 * 1024), 2) if db_exists else 0,
+        "zip_path": zip_path,
+        "zip_exists": zip_exists,
+        "zip_size_mb": round(os.path.getsize(zip_path) / (1024 * 1024), 2) if zip_exists else 0,
+        "startup_diagnostics": _STARTUP_DIAGNOSTICS,
+    }
+
+    # Quick validation: try opening the database
+    if db_exists:
+        try:
+            import sqlite3
+            conn = sqlite3.connect(f"file:{CONSOLIDATED_DB_PATH}?mode=ro", uri=True, timeout=3)
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table';")
+            table_count = cursor.fetchone()[0]
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='unified_search_fts';")
+            has_fts = cursor.fetchone() is not None
+            fts_schema = []
+            if has_fts:
+                cursor.execute("PRAGMA table_info(unified_search_fts);")
+                fts_schema = [c[1] for c in cursor.fetchall()]
+            conn.close()
+            health["table_count"] = table_count
+            health["has_fts_index"] = has_fts
+            health["fts_columns"] = fts_schema
+            health["status"] = "healthy"
+        except Exception as e:
+            health["status"] = "error"
+            health["error"] = str(e)
+    else:
+        health["status"] = "missing"
+
+    return health
 
 @app.get("/api/database/stats")
 def database_stats():

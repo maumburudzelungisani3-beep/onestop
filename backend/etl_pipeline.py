@@ -882,18 +882,31 @@ class ETLPipeline:
             CREATE VIRTUAL TABLE unified_search_fts USING fts5(
                 source_name,
                 table_name,
+                row_id,
                 title,
                 subtitle,
                 content
             );
         """)
 
+        # Convert 5-tuple entries (source_name, table_name, title, subtitle, content)
+        # into 6-tuple entries (source_name, table_name, row_id, title, subtitle, content)
+        # row_id is synthesized as a sequential counter per table for record lookup
+        table_row_counters: Dict[str, int] = {}
+        expanded_entries = []
+        for entry in fts_entries:
+            src_name, tbl_name = entry[0], entry[1]
+            counter = table_row_counters.get(tbl_name, 0) + 1
+            table_row_counters[tbl_name] = counter
+            # Insert as (source_name, table_name, row_id, title, subtitle, content)
+            expanded_entries.append((src_name, tbl_name, str(counter), entry[2], entry[3], entry[4]))
+
         # Insert in chunks
         chunk_size = 2000
-        for i in range(0, len(fts_entries), chunk_size):
-            chunk = fts_entries[i:i + chunk_size]
+        for i in range(0, len(expanded_entries), chunk_size):
+            chunk = expanded_entries[i:i + chunk_size]
             sqlite_conn.executemany(
-                "INSERT INTO unified_search_fts (source_name, table_name, title, subtitle, content) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO unified_search_fts (source_name, table_name, row_id, title, subtitle, content) VALUES (?, ?, ?, ?, ?, ?)",
                 chunk
             )
         sqlite_conn.commit()

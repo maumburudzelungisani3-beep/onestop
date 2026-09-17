@@ -235,13 +235,31 @@ class SQLiteConnector:
                 return []
             fts_query = " ".join([f"{w}*" for w in clean_words])
 
-            cursor.execute("""
-                SELECT table_name, row_id, title, subtitle, content
-                FROM unified_search_fts
-                WHERE unified_search_fts MATCH ?
-                LIMIT ?
-            """, (fts_query, max_results))
-            matches = cursor.fetchall()
+            # Detect FTS schema to handle both old (no row_id) and new (with row_id) layouts
+            fts_has_row_id = False
+            try:
+                cursor.execute("PRAGMA table_info(unified_search_fts);")
+                fts_columns = [c[1] for c in cursor.fetchall()]
+                fts_has_row_id = "row_id" in fts_columns
+            except Exception:
+                pass
+
+            if fts_has_row_id:
+                cursor.execute("""
+                    SELECT table_name, row_id, title, subtitle, content
+                    FROM unified_search_fts
+                    WHERE unified_search_fts MATCH ?
+                    LIMIT ?
+                """, (fts_query, max_results))
+                matches = [(r[0], r[1], r[2], r[3], r[4]) for r in cursor.fetchall()]
+            else:
+                cursor.execute("""
+                    SELECT table_name, title, subtitle, content
+                    FROM unified_search_fts
+                    WHERE unified_search_fts MATCH ?
+                    LIMIT ?
+                """, (fts_query, max_results))
+                matches = [(r[0], None, r[1], r[2], r[3]) for r in cursor.fetchall()]
 
             # Cache table columns for fast dict mapping
             table_col_cache = {}
