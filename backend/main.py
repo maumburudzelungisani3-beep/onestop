@@ -107,24 +107,24 @@ def _extract_database_if_needed():
                 if os.path.exists(CONSOLIDATED_DB_PATH):
                     db_size_mb = round(os.path.getsize(CONSOLIDATED_DB_PATH) / (1024 * 1024), 2)
                     _STARTUP_DIAGNOSTICS["extraction_success"] = True
-                    print(f"[STARTUP] ✅ Database extracted successfully: {db_size_mb} MB in {elapsed}s")
+                    print(f"[STARTUP] [OK] Database extracted successfully: {db_size_mb} MB in {elapsed}s")
                 else:
                     _STARTUP_DIAGNOSTICS["extraction_error"] = "Zip extracted but .db file not found on disk afterwards"
-                    print(f"[STARTUP] ⚠️ Zip extracted but database file not found at {CONSOLIDATED_DB_PATH}")
+                    print(f"[STARTUP] [WARN] Zip extracted but database file not found at {CONSOLIDATED_DB_PATH}")
 
             except Exception as e:
                 elapsed = round(time.time() - t0, 1)
                 err_msg = f"{type(e).__name__}: {e}"
                 _STARTUP_DIAGNOSTICS["extraction_error"] = err_msg
                 _STARTUP_DIAGNOSTICS["extraction_duration_seconds"] = elapsed
-                print(f"[STARTUP] ❌ Failed to extract consolidated database after {elapsed}s: {err_msg}")
+                print(f"[STARTUP] [ERROR] Failed to extract consolidated database after {elapsed}s: {err_msg}")
                 traceback.print_exc()
         else:
             _STARTUP_DIAGNOSTICS["extraction_error"] = "Zip archive not found in deployment"
-            print(f"[STARTUP] ❌ No zip archive found — database will be unavailable")
+            print(f"[STARTUP] [ERROR] No zip archive found - database will be unavailable")
     else:
         db_size_mb = round(os.path.getsize(CONSOLIDATED_DB_PATH) / (1024 * 1024), 2)
-        print(f"[STARTUP] ✅ Consolidated database already exists: {db_size_mb} MB")
+        print(f"[STARTUP] [OK] Consolidated database already exists: {db_size_mb} MB")
         _STARTUP_DIAGNOSTICS["extraction_success"] = True
 
     # Ensure initial demo sources exist if sources.json is empty
