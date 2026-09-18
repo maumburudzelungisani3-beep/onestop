@@ -166,11 +166,8 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[str, A
         user_count = cur.fetchone()["count"]
         conn.close()
         if user_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Setup required: Please create the administrator account.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            # During initial setup with no users configured yet, grant open access so database and search are immediately available
+            return {"id": "setup-admin", "username": "admin", "display_name": "Setup Admin", "role": "admin"}
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication token required",

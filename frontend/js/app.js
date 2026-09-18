@@ -3,11 +3,14 @@
  * Handles live multi-source searching, data inspection drawer, network source configuration, and exports.
  */
 
-// Dynamic API Base URL resolver (supports Vercel rewrites, custom Render URL, and local dev)
+// Dynamic API Base URL resolver (supports Vercel rewrites, direct Render URL, and local dev)
 function getApiUrl(path) {
   const customBase = localStorage.getItem('databridge_api_base') || window.DATABRIDGE_API_BASE || '';
   if (customBase) {
     return `${customBase.replace(/\/+$/, '')}${path}`;
+  }
+  if (typeof window !== 'undefined' && window.location && window.location.hostname && window.location.hostname.includes('vercel.app')) {
+    return `https://databridge-api-pp88.onrender.com${path}`;
   }
   return path;
 }
@@ -105,12 +108,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   setupEventListeners();
   initAuthSystem();
-  const isAuthenticated = await checkAuthStatus();
-  if (isAuthenticated) {
-    await loadSources();
-    await initConsolidatedDb();
-    await executeSearch();
-  }
+  await loadSources();
+  await initConsolidatedDb();
+  await executeSearch();
+  await checkAuthStatus();
 });
 
 // =============================================================================
@@ -1772,12 +1773,14 @@ async function checkAuthStatus() {
     const token = localStorage.getItem('databridge_token');
     const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
     const res = await fetch(getApiUrl('/api/auth/status'), { headers });
+    if (!res.ok) {
+      return false;
+    }
     const data = await res.json();
 
     if (!data.auth_configured) {
-      showAuthSetupView();
-      showAuthOverlay();
-      return false;
+      // Setup mode: database is viewable, user can configure credentials from profile/auth overlay when desired
+      return true;
     }
 
     if (data.current_user) {
@@ -1790,8 +1793,7 @@ async function checkAuthStatus() {
       return false;
     }
   } catch (err) {
-    console.error('Error checking auth:', err);
-    showAuthOverlay();
+    console.warn('Notice checking auth status:', err);
     return false;
   }
 }
